@@ -8,7 +8,7 @@
 ---
 name: PR-CI-Parallel-pre-setup
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
     # Keep next targets in sync with `test-github-actions.groovy`.

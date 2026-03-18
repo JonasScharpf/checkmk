@@ -1,0 +1,60 @@
+# This is a simple entry point to execute the basic and most important tests
+# for Checkmk. We run tools like bazel and our pytest based unit tests here.
+# Some tests, like integration tests or tests of very specific components are
+# not executed.
+#
+# We focus on the tests that are needed by external developers, e.g. to support
+# check plugin development.
+---
+name: PR CI Matrix Setup
+description: Execute most important tests during a PR
+
+on: [push, pull_request]
+
+jobs:
+  parallel:
+    timeout-minutes: 55
+    strategy:
+      max-parallel: 4
+      matrix:
+        job:
+          # Keep next targets in sync with "test-github-actions.groovy".
+          # The overview page is shown as "parallel(Run unit tests, unittesting, make -C tests test-unit, ubuntu-24.04)"
+          # keep this order of key words
+          - name: Check formatting
+            key: formatting
+            target: "bazel run //:format.check"
+          - name: Lint repo
+            key: linting
+            target: "bazel lint --fixes=false ..."
+          - name: Check typing
+            key: typing
+            target: "bazel build --config=mypy ..."
+          - name: Run unit tests
+            key: unittesting
+            target: "make -C tests test-unit"
+        os: [ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Prepare setup
+        uses: ./.github/workflows/common-pr-setup4
+      - name: Cache pip
+        # pip cache of formatting is only a few MB, not worth restoring
+        if: ${{ matrix.job.key != 'formatting' }}
+        uses: actions/cache@v3
+        with:
+          key: ${{ matrix.os }}-${{ matrix.job.key }}-pip-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE', 'MODULE.bazel') }}
+          path: ~/.cache/pip
+          restore-keys: ${{ matrix.os }}-${{ matrix.job.key }}-pip-
+      - name: ${{ matrix.job.name }}
+        run: ${{ matrix.job.target }}
+      - name: Check cache folder content
+        if: ${{ !cancelled() }}
+        run: |
+          if [[ -d ~/.cache/ ]]; then
+            du -sh ~/.cache/*
+          else
+            echo "No ~/.cache found, might be first run"
+          fi
