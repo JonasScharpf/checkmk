@@ -328,6 +328,10 @@ jobs:
                       ~/.cache/bazel
                   restore-keys: |
                       ubuntu-latest-bazel-
+            - name: Check available space
+              run: |
+                  echo "Free space before installing additional tools"
+                  df --block-size=$((1024*1024)) --output="used" / | tail -n 1
             - name: Setup Environment
               run: |
                   # ksh: Needed for some "unit test" (test_mk_errpt_aix).
@@ -342,8 +346,13 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
                   sudo apt-get clean
+                  sudo du -sh /var/lib/apt/lists/
                   sudo rm -rf /var/lib/apt/lists/*
                   make .venv
+            - name: Check available space after tool installation
+              run: |
+                  echo "Free space before installing additional tools"
+                  df --block-size=$((1024*1024)) --output="used" / | tail -n 1
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Run unit tests
               run: make -C tests test-unit
