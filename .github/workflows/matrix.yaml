@@ -1,0 +1,23 @@
+name: Matrix Configuration
+
+on: [pull_request]
+
+jobs:
+  deploy:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04] # windows-latest
+        # images: [hello-world, alpine]
+        job:
+          # Keep next targets in sync with `test-github-actions.groovy`.
+          - { name: "Check formatting", target: "bazel run //:format.check", key: formatting }
+          - { name: "Lint repo", target: "bazel lint --fixes=false ...", key: linting }
+          - { name: "Check typing", target: "bazel build --config=mypy ...", key: typing }
+          - { name: "Run unit tests", target: "make -C tests test-unit", key: unittesting }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Echo Docker details
+        run: docker info
+
+      - name: Run image on ${{ matrix.os }}
+        run: echo "Call ${{ matrix.job.target }} with name ${{ matrix.job.name}}"
