@@ -1,0 +1,118 @@
+# This is a simple entry point to execute the basic and most important Python
+# tests for Checkmk. We run tools like ruff, black and our pytest based unit
+# tests here. Some tests, like integration tests or tests of very specific
+# components are not executed.
+#
+# We focus on the tests that are needed by external developers, e.g. to support
+# check plugin development.
+---
+name: Common-PR-CI-setup
+description: Prepare common setup
+
+# on:
+#     workflow_call:
+
+env:
+    PYTHONWARNINGS: ignore:DeprecationWarning
+    # Avoid falling back to our internal bazel remote cache on github actions
+    BAZEL_CACHE_URL: ""
+    # Needed by "make .venv" to compute PYTHON_REQUIREMENTS_TEST
+    EDITION: community
+
+runs:
+    using: "composite"
+    # timeout-minutes: 20
+    # runs-on: ubuntu-latest
+    steps:
+        # - name: Checkout Repository
+        #   uses: actions/checkout@v3
+        - name: Remove unnecessary build tools
+          shell: bash
+          run: |
+              echo "Remove unnecessary directories:"
+              # to avoid running out of disk space we remove
+              # tools we don't need for this project
+              declare -i used_disk_before=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+              declare -a tool_dirs=(
+                "/opt/ghc" # Haskell
+                "/usr/lib/google-cloud-sdk" # Google SDK
+                "/usr/lib/jvm" # Java
+                "/usr/local/.ghcup" # Haskell
+                "/usr/local/lib/android" # Android SDK
+                "/usr/local/share/chromium" # Chrome Browser
+                "/usr/local/share/powershell" # PowerShell
+                "/usr/share/dotnet" # .NET
+                "/usr/share/swift" # Swift
+              )
+              for tool_dir in ${tool_dirs[@]}; do
+                if [ -d "${tool_dir}" ]; then
+                  echo "- ${tool_dir}"
+                  sudo rm -rf "${tool_dir}"
+                fi
+              done
+              declare -i used_disk_after=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+              echo "Saved disk space: $(((used_disk_before-used_disk_after)/1024))GB"
+              echo "Free space after cleanup: $((used_disk_after/1024))GB"
+        - name: "Print OS information"
+          shell: bash
+          run: |
+              cat /etc/os-release
+              printenv
+        - name: Set Environment Variables
+          shell: bash
+          run: |
+              # Using existing environment variables within another variables is not working in the jobs.*.env section
+              #  more infos see: https://brandur.org/fragments/github-actions-env-vars-in-env-vars
+              echo "UV_CACHE_DIR=$HOME/.cache/uv" >> $GITHUB_ENV
+        - name: Cache bazelisk
+          uses: actions/cache@v3
+          with:
+              key: ${{ hashFiles('.bazelversion', '.bazeliskrc') }}
+              path: |
+                  ~/.cache/bazelisk
+        - name: Cache bazel
+          uses: actions/cache@v3
+          with:
+              key: ubuntu-latest-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE', 'MODULE.bazel') }}
+              path: |
+                  ~/.cache/bazel
+              restore-keys: |
+                  ubuntu-latest-bazel-
+        - name: Check available space after restoring cache
+          shell: bash
+          run: |
+              declare -i used_disk_after_restore=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+              echo "Free space before installing additional tools: $((used_disk_after_restore/1024))GB"
+        - name: Setup Environment
+          shell: bash
+          run: |
+              # ksh: Needed for some "unit test", lint, typing (test_mk_errpt_aix).
+              # librrd-dev: Needed for building rrdtool python bindings.
+              # libldap2-dev: Needed for building python-ldap.
+              # libsasl2-dev: Needed for building python-ldap.
+              # libkrb5-dev: Needed for building pykerberos.
+              # libglib2.0-dev: required by packages/glib and therfore transitive by python unit tests
+              # gettext: Needed for some "unit tests" (test_i18n.py)
+              sudo add-apt-repository -y ppa:ubuntu-toolchain-r/ppa
+              sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+              sudo apt-get update
+              sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
+              sudo apt-get clean
+              sudo rm -rf /var/lib/apt/lists/*
+        - name: Check available space after installing all additional tools
+          shell: bash
+          run: |
+              declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+              echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
+        - name: Check cache folder content
+          if: ${{ !cancelled() }}
+          shell: bash
+          run: |
+            if [[ -d ~/.cache/ ]]; then
+              ls ~/.cache/
+              # bazel
+              # bazelisk
+              du -sh ~/.cache/*
+            else
+              echo "No ~/.cache found, might be first run"
+            fi

@@ -1,0 +1,102 @@
+# This is a simple entry point to execute the basic and most important Python
+# tests for Checkmk. We run tools like ruff, black and our pytest based unit
+# tests here. Some tests, like integration tests or tests of very specific
+# components are not executed.
+#
+# We focus on the tests that are needed by external developers, e.g. to support
+# check plugin development.
+---
+name: PR-CI-Parallel-pre-setup
+
+on: [push, pull_request]
+
+jobs:
+    # Keep next targets in sync with `test-github-actions.groovy`.
+    format:
+        timeout-minutes: 45
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Prepare
+              uses: ./.github/workflows/common-pr-setup
+            - name: Formatting
+              run: bazel run //:format.check
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
+                # aspect
+                # bazel
+                # bazel_disk_cache
+                # bazelisk
+                du -sh ~/.cache/*
+    lint:
+        timeout-minutes: 45
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Prepare
+              uses: ./.github/workflows/common-pr-setup
+            - name: Lint repo
+              run: bazel lint --fixes=false ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
+                # aspect
+                # bazel
+                # bazel_disk_cache
+                # bazelisk
+                # pip
+                # python-entrypoints
+                du -sh ~/.cache/*
+    type:
+        timeout-minutes: 45
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Prepare
+              uses: ./.github/workflows/common-pr-setup
+            - name: Check typing
+              run: bazel build --config=mypy ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
+                # aspect
+                # bazel
+                # bazel_disk_cache
+                # bazelisk
+                # pip
+                du -sh ~/.cache/*
+    unittest:
+        timeout-minutes: 45
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Prepare
+              uses: ./.github/workflows/common-pr-setup
+            - name: Cache pip
+              uses: actions/cache@v3
+              with:
+                  key: ubuntu-latest-pip-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE', 'MODULE.bazel') }}
+                  path: |
+                      ~/.cache/pip
+                  restore-keys: |
+                      ubuntu-latest-pip-
+            - name: Run unit tests
+              run: make -C tests test-unit
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
+                # aspect
+                # bazel
+                # bazel_disk_cache
+                # bazelisk
+                # pip
+                du -sh ~/.cache/*
