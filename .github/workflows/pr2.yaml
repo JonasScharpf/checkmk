@@ -46,6 +46,7 @@ jobs:
                   done
                   declare -i used_disk_after=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
                   echo "Saved disk space: $(((used_disk_before-used_disk_after)/1024))G"
+                  echo "Free space after cleanup: $((used_disk_after/1024))GB"
             - name: "Print OS information"
               run: |
                   cat /etc/os-release
@@ -57,11 +58,6 @@ jobs:
                   echo "UV_CACHE_DIR=$HOME/.cache/uv" >> $GITHUB_ENV
             - name: Checkout Repository
               uses: actions/checkout@v3
-            # - name: Cache uv
-            #   uses: actions/cache@v3
-            #   with:
-            #       key: uv-${{ matrix.os }}-${{ hashFiles('community-requirements.txt') }}
-            #       path: ${{ env.UV_CACHE_DIR  }}
             - name: Cache bazelisk
               uses: actions/cache@v3
               with:
@@ -103,6 +99,10 @@ jobs:
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Formatting
               run: bazel run //:format.check
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
     lint:
         runs-on: ubuntu-latest
         env:
@@ -138,6 +138,7 @@ jobs:
                   done
                   declare -i used_disk_after=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
                   echo "Saved disk space: $(((used_disk_before-used_disk_after)/1024))G"
+                  echo "Free space after cleanup: $((used_disk_after/1024))GB"
             - name: "Print OS information"
               run: |
                   cat /etc/os-release
@@ -149,11 +150,6 @@ jobs:
                   echo "UV_CACHE_DIR=$HOME/.cache/uv" >> $GITHUB_ENV
             - name: Checkout Repository
               uses: actions/checkout@v3
-            # - name: Cache uv
-            #   uses: actions/cache@v3
-            #   with:
-            #       key: uv-${{ matrix.os }}-${{ hashFiles('community-requirements.txt') }}
-            #       path: ${{ env.UV_CACHE_DIR  }}
             - name: Cache bazelisk
               uses: actions/cache@v3
               with:
@@ -172,29 +168,33 @@ jobs:
               run: |
                   declare -i used_disk_after_restore=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
                   echo "Free space before installing additional tools: $((used_disk_after_restore/1024))GB"
-            # - name: Setup Environment
-            #   run: |
-            #       # ksh: Needed for some "unit test" (test_mk_errpt_aix).
-            #       # librrd-dev: Needed for building rrdtool python bindings.
-            #       # libldap2-dev: Needed for building python-ldap.
-            #       # libsasl2-dev: Needed for building python-ldap.
-            #       # libkrb5-dev: Needed for building pykerberos.
-            #       # libglib2.0-dev: required by packages/glib and therfore transitive by python unit tests
-            #       # gettext: Needed for some "unit tests" (test_i18n.py)
-            #       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/ppa
-            #       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-            #       sudo apt-get update
-            #       sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
-            #       sudo apt-get clean
-            #       sudo rm -rf /var/lib/apt/lists/*
-            #       # make .venv
-            # - name: Check available space after installing all additional tools
-            #   run: |
-            #       declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
-            #       echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
+            - name: Setup Environment
+              run: |
+                  # ksh: Needed for some "unit test" + lint (test_mk_errpt_aix).
+                  # librrd-dev: Needed for building rrdtool python bindings.
+                  # libldap2-dev: Needed for building python-ldap.
+                  # libsasl2-dev: Needed for building python-ldap.
+                  # libkrb5-dev: Needed for building pykerberos.
+                  # libglib2.0-dev: required by packages/glib and therfore transitive by python unit tests
+                  # gettext: Needed for some "unit tests" (test_i18n.py)
+                  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/ppa
+                  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+                  sudo apt-get update
+                  sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
+                  sudo apt-get clean
+                  sudo rm -rf /var/lib/apt/lists/*
+                  # make .venv
+            - name: Check available space after installing all additional tools
+              run: |
+                  declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+                  echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Lint repo
               run: bazel lint --fixes=false ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
     type:
         runs-on: ubuntu-latest
         env:
@@ -230,6 +230,7 @@ jobs:
                   done
                   declare -i used_disk_after=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
                   echo "Saved disk space: $(((used_disk_before-used_disk_after)/1024))G"
+                  echo "Free space after cleanup: $((used_disk_after/1024))GB"
             - name: "Print OS information"
               run: |
                   cat /etc/os-release
@@ -245,11 +246,6 @@ jobs:
                   echo "UV_CACHE_DIR=$HOME/.cache/uv" >> $GITHUB_ENV
             - name: Checkout Repository
               uses: actions/checkout@v3
-            # - name: Cache uv
-            #   uses: actions/cache@v3
-            #   with:
-            #       key: uv-${{ matrix.os }}-${{ hashFiles('community-requirements.txt') }}
-            #       path: ${{ env.UV_CACHE_DIR  }}
             - name: Cache bazelisk
               uses: actions/cache@v3
               with:
@@ -264,29 +260,33 @@ jobs:
                       ~/.cache/bazel
                   restore-keys: |
                       ubuntu-latest-bazel-
-            # - name: Setup Environment
-            #   run: |
-            #       # ksh: Needed for some "unit test" (test_mk_errpt_aix).
-            #       # librrd-dev: Needed for building rrdtool python bindings.
-            #       # libldap2-dev: Needed for building python-ldap.
-            #       # libsasl2-dev: Needed for building python-ldap.
-            #       # libkrb5-dev: Needed for building pykerberos.
-            #       # libglib2.0-dev: required by packages/glib and therfore transitive by python unit tests
-            #       # gettext: Needed for some "unit tests" (test_i18n.py)
-            #       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/ppa
-            #       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-            #       sudo apt-get update
-            #       sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
-            #       sudo apt-get clean
-            #       sudo rm -rf /var/lib/apt/lists/*
-            #       # make .venv
-            # - name: Check available space after installing all additional tools
-            #   run: |
-            #       declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
-            #       echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
+            - name: Setup Environment
+              run: |
+                  # ksh: Needed for some "unit test" + typing (test_mk_errpt_aix).
+                  # librrd-dev: Needed for building rrdtool python bindings.
+                  # libldap2-dev: Needed for building python-ldap.
+                  # libsasl2-dev: Needed for building python-ldap.
+                  # libkrb5-dev: Needed for building pykerberos.
+                  # libglib2.0-dev: required by packages/glib and therfore transitive by python unit tests
+                  # gettext: Needed for some "unit tests" (test_i18n.py)
+                  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/ppa
+                  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+                  sudo apt-get update
+                  sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
+                  sudo apt-get clean
+                  sudo rm -rf /var/lib/apt/lists/*
+                  # make .venv
+            - name: Check available space after installing all additional tools
+              run: |
+                  declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+                  echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Check typing
               run: bazel build --config=mypy ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
     unittest:
         runs-on: ubuntu-latest
         env:
@@ -322,6 +322,7 @@ jobs:
                   done
                   declare -i used_disk_after=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
                   echo "Saved disk space: $(((used_disk_before-used_disk_after)/1024))G"
+                  echo "Free space after cleanup: $((used_disk_after/1024))GB"
             - name: "Print OS information"
               run: |
                   cat /etc/os-release
@@ -380,3 +381,7 @@ jobs:
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Run unit tests
               run: make -C tests test-unit
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                ls ~/.cache/
