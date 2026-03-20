@@ -8,7 +8,7 @@
 ---
 name: PR-CI
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
     testing:
@@ -53,6 +53,10 @@ jobs:
               run: |
                   echo ${{ matrix.os }}
                   cat /etc/os-release
+            - name: Check available space after restoring cache
+              run: |
+                  declare -i used_disk_after_restore=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+                  echo "Free space before installing additional tools: $((used_disk_after_restore/1024))GB"
             - name: Set Environment Variables
               run: |
                   # Using existing environment variables within another variables is not working in the jobs.*.env section
@@ -98,16 +102,55 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install ksh libpango1.0-dev librrd-dev libldap2-dev libsasl2-dev libkrb5-dev libglib2.0-dev gettext "^g\+\+-14$"
                   make .venv
+            - name: Reset bazel downloader config
+              run: |
+                  echo -n "" > bazel_downloader.cfg
+            - name: Check available space after installing all additional tools
+              run: |
+                  declare -i used_disk_after_installation=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+                  echo "Free space before installing additional tools: $((used_disk_after_installation/1024))GB"
             # Keep next targets in sync with `test-github-actions.groovy`.
             - name: Formatting
               if: ${{ !cancelled() }}
               run: bazel run //:format.check
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                if [[ -d ~/.cache/ ]]; then
+                  du -sh ~/.cache/*
+                else
+                  echo "No ~/.cache found, might be first run"
+                fi
             - name: Lint repo
               if: ${{ !cancelled() }}
               run: bazel lint --fixes=false ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                if [[ -d ~/.cache/ ]]; then
+                  du -sh ~/.cache/*
+                else
+                  echo "No ~/.cache found, might be first run"
+                fi
             - name: Check typing
               if: ${{ !cancelled() }}
               run: bazel build --config=mypy ...
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                if [[ -d ~/.cache/ ]]; then
+                  du -sh ~/.cache/*
+                else
+                  echo "No ~/.cache found, might be first run"
+                fi
             - name: Run unit tests
               if: ${{ !cancelled() }}
               run: make -C tests test-unit
+            - name: Check cache folder content
+              if: ${{ !cancelled() }}
+              run: |
+                if [[ -d ~/.cache/ ]]; then
+                  du -sh ~/.cache/*
+                else
+                  echo "No ~/.cache found, might be first run"
+                fi
