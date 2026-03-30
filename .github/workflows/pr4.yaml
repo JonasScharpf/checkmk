@@ -36,6 +36,10 @@ jobs:
         os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Check available space before any other step
+        run: |
+            declare -i initial_disk_space=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+            echo "Free space before doing anything: $((initial_disk_space/1024))GB"
       - name: Checkout Repository
         uses: actions/checkout@v3
       - name: Prepare setup
@@ -58,3 +62,7 @@ jobs:
           else
             echo "No ~/.cache found, might be first run"
           fi
+      - name: Check final space after all other step
+        run: |
+            declare -i final_disk_space=$(df --block-size=$((1024*1024)) --output="used" / | tail -n 1)
+            echo "Free space after doing everything: $((final_disk_space/1024))GB"
